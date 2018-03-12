@@ -10,7 +10,7 @@ Bob Zigon, Huang Li, Xiaohui Yao, Shiaofen Fang, Mohammad Al Hasan, Jingwen Yan,
 How to Run
 ==========
 
-You can either compile it from the source code or download the binary from [here](http://www.iu.edu/~beca/BECA-GenomicExplorer.zip)
+You can either compile it from the source code or download the binary from [here](http://www.iu.edu/~beca/BECA-GenomicExplorer.zip). 
 An example dataset is included in the binary zip file.
 
 [software manual](http://www.iu.edu/~beca/asserts/BECA_Software_Manual_GenomeExplorer.pdf)
