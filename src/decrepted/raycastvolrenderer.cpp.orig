@@ -1,0 +1,552 @@
+#include "raycastvolrenderer.h"
+#include "model/probabilityvolume.h"
+#include <vtkCamera.h>
+#include <vtkViewport.h>
+#include <QDebug>
+#include <QTextStream>
+#include <QFile>
+#include <qmath.h>
+#include <QVector4D>
+#include "model/subject.h"
+
+#define Floats2Vector3D(ad3fArray) QVector3D(ad3fArray[0], ad3fArray[1], ad3fArray[2])
+#define Floats2Vector4D(ad3fArray) QVector4D(ad3fArray[0], ad3fArray[1], ad3fArray[2], ad3fArray[3])
+#define EPSILON 0.01
+#define RAYCASTDEBUG 0
+
+RayCastVolRenderer::RayCastVolRenderer(QObject *parent) : QObject(parent)
+{
+    init();
+}
+
+RayCastVolRenderer::~RayCastVolRenderer()
+{
+
+}
+
+void RayCastVolRenderer::init()
+{
+    m_eCameraType = SPHERICAL;
+    m_cSize = QSize(-1,-1);
+    m_cImage = QImage(100, 100, QImage::Format_ARGB32);
+    m_cRays.clear();
+    m_pcSubject = NULL;
+    m_pcRenderer = NULL;
+    m_iXMin = m_iXMax = -1; m_dXSpacing = 1; m_iXCordMin = m_iXCordMax = -1;
+    m_iYMin = m_iYMax = -1; m_dYSpacing = 1; m_iYCordMin = m_iYCordMax = -1;
+    m_iZMin = m_iZMax = -1; m_dZSpacing = 1; m_iZCordMin = m_iZCordMax = -1;
+    m_cBackgroundColor = QColor(0,0,0,255);
+    m_dTStep = 1;
+}
+
+void RayCastVolRenderer::initPerspectiveRays()
+{
+    vtkCamera* pcCamera = this->getRenderer()->GetActiveCamera();
+    QVector3D cCamPos = Floats2Vector3D(pcCamera->GetPosition());
+    QVector3D cCamUp  = Floats2Vector3D(pcCamera->GetViewUp());
+    QVector3D cCamFo  = Floats2Vector3D(pcCamera->GetFocalPoint());
+    double dAngle = pcCamera->GetViewAngle();   /// *** in degree, typically 30 ***
+    double dAngleRadian = dAngle/360*vtkMath::Pi();
+    double* adAspect = this->getRenderer()->GetAspect();
+    double dAspectRatio = adAspect[0] / adAspect[1];
+    int iWidth = this->getRenderer()->GetSize()[0];
+    int iHeight = this->getRenderer()->GetSize()[1];
+
+#if RAYCASTDEBUG
+    qDebug() << "Resolution is" << iWidth << "X" << iHeight;
+    qDebug() << "Camera" << cCamPos << cCamUp << cCamFo;
+    qDebug() << "Aspect Ratio" << adAspect[0] << adAspect[1] << dAspectRatio;
+    qDebug() << "Vertical Angle is" << dAngle;
+#endif
+    /// init rays
+    this->getRays().clear();
+
+    QVector3D cCenterToEye = (cCamFo - cCamPos).normalized();
+    QVector3D cUpUnit = cCamUp.normalized()*(cCenterToEye.length()*tan(dAngleRadian)/(iHeight/2.0));
+    QVector3D cRightUnit = QVector3D::crossProduct(cCenterToEye, cUpUnit).normalized();
+    cRightUnit = cRightUnit * cUpUnit.length();
+
+#if RAYCASTDEBUG
+    QFile cRayFile;
+    cRayFile.setFileName("ray_direction.txt");
+    cRayFile.open(QIODevice::WriteOnly);
+    QTextStream cRayStream(&cRayFile);
+
+    QFile cHitFile;
+    cHitFile.setFileName("hit_points.txt");
+    cHitFile.open(QIODevice::WriteOnly);
+    QTextStream cHitStream(&cHitFile);
+#endif
+
+
+    vtkImageData* pcVolume = this->getSubject()->getGrayMat().getProbVol().getVolume().GetPointer();
+    this->computeBound(pcVolume);
+
+    double* adSpaces = pcVolume->GetSpacing();
+    int* iExtends = pcVolume->GetExtent();
+
+    double dVolumeRadius =  (iExtends[1]*adSpaces[0])*(iExtends[1]*adSpaces[0]) +
+                            (iExtends[3]*adSpaces[1])*(iExtends[3]*adSpaces[1]) +
+                            (iExtends[5]*adSpaces[2])*(iExtends[5]*adSpaces[2]);
+    QVector3D cVolumeCenter =   Floats2Vector3D(pcVolume->GetOrigin()) +
+                                QVector3D(iExtends[1]*adSpaces[0]/2, iExtends[3]*adSpaces[1]/2, iExtends[5]*adSpaces[2]/2);
+    dVolumeRadius = qSqrt(dVolumeRadius)/2;
+
+//    qDebug() << iExtends[1] << iExtends[3] << iExtends[5];
+
+#if RAYCASTDEBUG
+    qDebug() << "Vol Center & Radius" << cVolumeCenter << dVolumeRadius;
+#endif
+
+    Ray cRay;
+    for(int i = -iHeight/2; i < iHeight/2; i++)
+    {
+        for(int j = -iWidth/2; j < iWidth/2; j++)
+        {
+            QVector3D cRayDir = cCenterToEye + i*cUpUnit + j*cRightUnit;
+            cRayDir.normalize();
+            cRay.setPoint(cCamPos);
+            cRay.setDir(cRayDir);
+            cRay.setViewportPos(QPoint(j+iWidth/2,(iHeight-1)-(i+iHeight/2)));  /// (iHeight-1)-(i+iHeight/2) for fliping Y axes beacuse Y axes is downwards in image
+
+            /// find intersection
+            this->intersectSpheres(cVolumeCenter, dVolumeRadius, cRay);
+
+#if RAYCASTDEBUG
+            cRayStream   << (cRay.getPoint()+cRayDir).x() << ","
+                         << (cRay.getPoint()+cRayDir).y() << ","
+                         << (cRay.getPoint()+cRayDir).z() << endl;
+
+            if(cRay.getHit())
+            {
+                QVector3D cHit1 = cRay.getPoint() + cRayDir*cRay.getTStart();
+                cHitStream   << cHit1.x() << ","
+                             << cHit1.y() << ","
+                             << cHit1.z() << endl;
+
+                QVector3D cHit2 = cRay.getPoint() + cRayDir*cRay.getTEnd();
+                cHitStream << cHit2.x() << ","
+                             << cHit2.y() << ","
+                             << cHit2.z() << endl;
+            }
+#endif
+            this->getRays().push_back(cRay);
+        }
+    }
+
+#if RAYCASTDEBUG
+    cHitFile.close();
+    cRayFile.close();
+#endif
+}
+
+void RayCastVolRenderer::initSphericalRays()
+{
+    vtkImageData* pcVolume = this->getSubject()->getGrayMat().getProbVol().getVolume().GetPointer();
+    QVector3D cCamPos = Floats2Vector3D(pcVolume->GetCenter());
+    int iWidth = this->getRenderer()->GetSize()[0];
+    int iHeight = this->getRenderer()->GetSize()[1];
+
+#if RAYCASTDEBUG
+    qDebug() << "Resolution is" << iWidth << "X" << iHeight;
+    qDebug() << "Camera" << cCamPos;
+#endif
+    /// init rays
+    this->getRays().clear();
+
+
+
+#if RAYCASTDEBUG
+    QFile cRayFile;
+    cRayFile.setFileName("ray_direction.txt");
+    cRayFile.open(QIODevice::WriteOnly);
+    QTextStream cRayStream(&cRayFile);
+
+    QFile cHitFile;
+    cHitFile.setFileName("hit_points.txt");
+    cHitFile.open(QIODevice::WriteOnly);
+    QTextStream cHitStream(&cHitFile);
+#endif
+
+
+    this->computeBound(pcVolume);
+
+    double* adSpaces = pcVolume->GetSpacing();
+    int* iExtends = pcVolume->GetExtent();
+
+    double dVolumeRadius =  (iExtends[1]*adSpaces[0])*(iExtends[1]*adSpaces[0]) +
+                            (iExtends[3]*adSpaces[1])*(iExtends[3]*adSpaces[1]) +
+                            (iExtends[5]*adSpaces[2])*(iExtends[5]*adSpaces[2]);
+    QVector3D cVolumeCenter =   Floats2Vector3D(pcVolume->GetOrigin()) +
+                                QVector3D(iExtends[1]*adSpaces[0]/2, iExtends[3]*adSpaces[1]/2, iExtends[5]*adSpaces[2]/2);
+    dVolumeRadius = qSqrt(dVolumeRadius)/2;
+
+//    qDebug() << iExtends[1] << iExtends[3] << iExtends[5];
+
+#if RAYCASTDEBUG
+    qDebug() << "Vol Center & Radius" << cVolumeCenter << dVolumeRadius;
+#endif
+
+
+    Ray cRay;
+    for(int i = 0; i < iHeight; i++)
+    {
+        double dAngleHeight = (double(i)/iHeight-0.5)*M_PI;
+        for(int j = 0; j < iWidth; j++)
+        {
+            double dAngleWidth = double(j)/iWidth*2*M_PI;
+            QVector3D cRayDir = QVector3D(qCos(dAngleWidth)*qCos(dAngleHeight),
+                                          qSin(dAngleWidth)*qCos(dAngleHeight),
+                                          qSin(dAngleHeight));
+            cRayDir.normalize();
+            cRay.setPoint(cCamPos);
+            cRay.setDir(cRayDir);
+            cRay.setViewportPos(QPoint(j,(iHeight-1)-i));  /// fliping Y axes beacuse Y axes is downwards in image
+
+            /// find intersection
+            this->intersectSpheres(cVolumeCenter, dVolumeRadius, cRay);
+
+#if RAYCASTDEBUG
+            cRayStream   << (cRay.getPoint()+cRayDir).x() << ","
+                         << (cRay.getPoint()+cRayDir).y() << ","
+                         << (cRay.getPoint()+cRayDir).z() << endl;
+
+            if(cRay.getHit())
+            {
+                QVector3D cHit1 = cRay.getPoint() + cRayDir*cRay.getTStart();
+                cHitStream   << cHit1.x() << ","
+                             << cHit1.y() << ","
+                             << cHit1.z() << endl;
+
+                QVector3D cHit2 = cRay.getPoint() + cRayDir*cRay.getTEnd();
+                cHitStream << cHit2.x() << ","
+                             << cHit2.y() << ","
+                             << cHit2.z() << endl;
+            }
+#endif
+            this->getRays().push_back(cRay);
+        }
+    }
+
+#if RAYCASTDEBUG
+    cHitFile.close();
+    cRayFile.close();
+#endif
+}
+
+void RayCastVolRenderer::raycast()
+{
+    if(this->getSubject() == NULL || this->getRenderer() == NULL)
+        return;
+
+    qDebug() << "Initilizaing Rays..";
+
+    if(this->getCameraType() == PERSPECTIVE)
+        initPerspectiveRays();
+    else
+        initSphericalRays();
+
+    qDebug() << "Start ray marching..";
+    /// ray march
+    for(int i = 0; i < this->getRays().size(); i++)
+    {
+        Ray& rcRay = this->getRays()[i];
+#if RAYCASTDEBUG
+        qDebug() << rcRay.getViewportPos();
+#endif
+        this->rayMarch(&rcRay);
+    }
+
+
+    qDebug() << "Saving..";
+    /// save
+    this->saveRenderedImage("rendered.png");
+
+
+}
+
+void RayCastVolRenderer::intersectSpheres(QVector3D &rcCenter, double dRadius, Ray& rcRay)
+{
+//    double dDistance = rcRay.getDir().distanceToPoint(rcCenter-rcRay.getPoint());
+    double dDistance = rcCenter.distanceToLine(rcRay.getPoint(), rcRay.getDir());
+    if(dRadius - dDistance < EPSILON)
+    {
+        rcRay.setHit(false);
+    }
+    else
+    {
+        rcRay.setHit(true);
+        double dDelta = qSqrt(dRadius*dRadius-dDistance*dDistance);
+        double dTMiddle = QVector3D::dotProduct( rcCenter-rcRay.getPoint(), rcRay.getDir() )/rcRay.getDir().length();
+        rcRay.setTStart(dTMiddle-dDelta);
+        rcRay.setTEnd(dTMiddle+dDelta);
+
+        /// if the ray start point is inside the sphere
+        if(rcRay.getTStart() < 0)
+            rcRay.setTStart(0);
+    }
+}
+
+void RayCastVolRenderer::computeBound(vtkImageData *pcVolume)
+{
+    double* adSpaces = pcVolume->GetSpacing();
+    int* iExtends = pcVolume->GetExtent();
+
+    m_iXMin = iExtends[0]*adSpaces[0]; m_iXMax = iExtends[1]*adSpaces[0]; m_dXSpacing = adSpaces[0];
+    m_iXCordMin = iExtends[0]; m_iXCordMax = iExtends[1];
+
+    m_iYMin = iExtends[2]*adSpaces[1]; m_iYMax = iExtends[3]*adSpaces[1]; m_dYSpacing = adSpaces[1];
+    m_iYCordMin = iExtends[2]; m_iYCordMax = iExtends[3];
+
+    m_iZMin = iExtends[4]*adSpaces[2]; m_iZMax = iExtends[5]*adSpaces[2]; m_dZSpacing = adSpaces[2];
+    m_iZCordMin = iExtends[4]; m_iZCordMax = iExtends[5];
+}
+
+bool RayCastVolRenderer::saveRenderedImage(QString strImgPath)
+{
+    int iWidth = this->getRenderer()->GetSize()[0];
+    int iHeight = this->getRenderer()->GetSize()[1];
+    QImage cResult = QImage(iWidth, iHeight, QImage::Format_RGB32);
+    for(int i = 0; i < this->getRays().size(); i++)
+    {
+
+        Ray& rcRay = this->getRays()[i];
+        cResult.setPixel(rcRay.getViewportPos(),
+                         rcRay.getColor().rgb());
+    }
+    hammerAitoffProjection(cResult).save("hammer.png");
+    return cResult.save(strImgPath);
+
+}
+
+<<<<<<< HEAD
+QColor RayCastVolRenderer::interpolateLabelColor(QVector3D &rcLocation, vtkImageData* pcVol)
+=======
+QImage RayCastVolRenderer::hammerAitoffProjection(QImage &rcInputImg)
+{
+    QImage cResult(rcInputImg.size(), QImage::Format_RGBA8888);
+    cResult.fill(Qt::white);
+
+    static const double sqrt2 = qSqrt(2.0);
+    int iWidth = rcInputImg.width();
+    int iHeight = rcInputImg.height();
+    for(int i = 0; i < iWidth; i++)
+    {
+        double x = 2*(i*1.0/iWidth-0.5);
+        for(int j = 0; j < iHeight; j++)
+        {
+            double y = 2*(j*1.0/iHeight-0.5);
+
+            double z2 = 1 - x*x/2 - y*y/2;
+            if(z2 < 0)
+                continue;
+
+            double z = sqrt(z2);
+            double longitude = 2 * qAtan(sqrt2 * x * z / (2 * z2 - 1));
+            if(x*longitude < 0)
+                continue;
+            double latitude = qAsin(sqrt2 * y * z);
+
+            int iXMapped = int((longitude+M_PI)/(M_PI*2)*iWidth);
+            int iYMapped = int((latitude+M_PI_2)/M_PI*iHeight);
+            cResult.setPixel(i,j,rcInputImg.pixel(iXMapped, iYMapped));
+
+
+
+        }
+    }
+    return cResult;
+}
+
+QColor RayCastVolRenderer::interpolateValue(QVector3D &rcLocation, vtkImageData* pcVol)
+>>>>>>> 5502a01db08944f8381cfd674c1b346e9dc43e85
+{
+    static QVector4D c000, c001, c010, c011, c100, c101, c110, c111;
+    static QVector4D c00, c01, c10, c11;
+    static QVector4D c0, c1;
+    static QVector4D c;
+
+    double world_x = rcLocation.x();
+    double world_y = rcLocation.y();
+    double world_z = rcLocation.z();
+
+
+    if( (world_x - m_iXMin > EPSILON) &&
+        (m_iXMax - world_x > EPSILON) &&
+        (world_y - m_iYMin > EPSILON) &&
+        (m_iYMax - world_y > EPSILON) &&
+        (world_z - m_iZMin > EPSILON) &&
+        (m_iZMax - world_z > EPSILON) )
+    {
+
+        double x = (world_x - m_iXMin)/m_dXSpacing;
+        double y = (world_y - m_iYMin)/m_dYSpacing;
+        double z = (world_z - m_iZMin)/m_dZSpacing;
+
+        int x0 = floor(x); int x1 = min(x0+1, m_iXCordMax);
+        int y0 = floor(y); int y1 = min(y0+1, m_iYCordMax);
+        int z0 = floor(z); int z1 = min(z0+1, m_iZCordMax);
+
+        double x_d = x - x0;
+        double y_d = y - y0;
+        double z_d = z - z0;
+//        qDebug() << x_d << y_d << z_d;
+
+        const int* adNeiColor = NULL;
+
+        adNeiColor = colorTransferFunc(*(double*)pcVol->GetScalarPointer(x0, y0, z0));
+        c000 = Floats2Vector4D(adNeiColor);
+
+        adNeiColor = colorTransferFunc(*(double*)pcVol->GetScalarPointer(x0, y1, z0));
+        c010 = Floats2Vector4D(adNeiColor);
+
+        adNeiColor = colorTransferFunc(*(double*)pcVol->GetScalarPointer(x0, y0, z1));
+        c001 = Floats2Vector4D(adNeiColor);
+
+        adNeiColor = colorTransferFunc(*(double*)pcVol->GetScalarPointer(x0, y1, z1));
+        c011 = Floats2Vector4D(adNeiColor);
+
+        adNeiColor = colorTransferFunc(*(double*)pcVol->GetScalarPointer(x1, y0, z0));
+        c100 = Floats2Vector4D(adNeiColor);
+
+        adNeiColor = colorTransferFunc(*(double*)pcVol->GetScalarPointer(x1, y1, z0));
+        c110 = Floats2Vector4D(adNeiColor);
+
+        adNeiColor = colorTransferFunc(*(double*)pcVol->GetScalarPointer(x1, y0, z1));
+        c101 = Floats2Vector4D(adNeiColor);
+
+        adNeiColor = colorTransferFunc(*(double*)pcVol->GetScalarPointer(x1, y1, z1));
+        c111 = Floats2Vector4D(adNeiColor);
+
+
+        c00 = c000*(1-x_d) + c100*x_d;
+        c10 = c010*(1-x_d) + c110*x_d;
+        c01 = c001*(1-x_d) + c101*x_d;
+        c11 = c011*(1-x_d) + c111*x_d;
+
+        c0 = c00*(1-y_d) + c10*y_d;
+        c1 = c01*(1-y_d) + c11*y_d;
+
+        c = c0*(1-z_d) + c1*z_d;
+
+//        qDebug() << c;
+        return QColor(int(c[0]), int(c[1]), int(c[2]), int(c[3]));
+    }
+    return QColor(0,0,0,0);
+
+}
+
+double RayCastVolRenderer::interpolateIntensity(QVector3D &rcLocation, vtkImageData *pcVol)
+{
+    static double c000, c001, c010, c011, c100, c101, c110, c111;
+    static double c00, c01, c10, c11;
+    static double c0, c1;
+    static double c;
+
+    double world_x = rcLocation.x();
+    double world_y = rcLocation.y();
+    double world_z = rcLocation.z();
+
+
+    if( (world_x - m_iXMin > EPSILON) &&
+        (m_iXMax - world_x > EPSILON) &&
+        (world_y - m_iYMin > EPSILON) &&
+        (m_iYMax - world_y > EPSILON) &&
+        (world_z - m_iZMin > EPSILON) &&
+        (m_iZMax - world_z > EPSILON) )
+    {
+
+        double x = (world_x - m_iXMin)/m_dXSpacing;
+        double y = (world_y - m_iYMin)/m_dYSpacing;
+        double z = (world_z - m_iZMin)/m_dZSpacing;
+
+        int x0 = floor(x); int x1 = min(x0+1, m_iXCordMax);
+        int y0 = floor(y); int y1 = min(y0+1, m_iYCordMax);
+        int z0 = floor(z); int z1 = min(z0+1, m_iZCordMax);
+
+        double x_d = x - x0;
+        double y_d = y - y0;
+        double z_d = z - z0;
+//        qDebug() << x_d << y_d << z_d;
+
+
+        c000 = *(double*)pcVol->GetScalarPointer(x0, y0, z0);
+
+        c010 = *(double*)pcVol->GetScalarPointer(x0, y1, z0);
+
+        c001 = *(double*)pcVol->GetScalarPointer(x0, y0, z1);
+
+        c011 = *(double*)pcVol->GetScalarPointer(x0, y1, z1);
+
+        c100 = *(double*)pcVol->GetScalarPointer(x1, y0, z0);
+
+        c110 = *(double*)pcVol->GetScalarPointer(x1, y1, z0);
+
+        c101 = *(double*)pcVol->GetScalarPointer(x1, y0, z1);
+
+        c111 = *(double*)pcVol->GetScalarPointer(x1, y1, z1);
+
+
+        c00 = c000*(1-x_d) + c100*x_d;
+        c10 = c010*(1-x_d) + c110*x_d;
+        c01 = c001*(1-x_d) + c101*x_d;
+        c11 = c011*(1-x_d) + c111*x_d;
+
+        c0 = c00*(1-y_d) + c10*y_d;
+        c1 = c01*(1-y_d) + c11*y_d;
+
+        c = c0*(1-z_d) + c1*z_d;
+
+//        qDebug() << c;
+        return c;
+    }
+    return 0;
+}
+
+void RayCastVolRenderer::rayMarch(Ray *pcRay)
+{
+    if(pcRay->getHit() == false)
+    {
+        pcRay->setColor(this->getBGColor());
+        return;
+    }
+
+    double dTCur = pcRay->getTEnd();
+    double dTEnd = pcRay->getTStart();
+#if RAYCASTDEBUG
+    qDebug() << dTCur << dTEnd;
+#endif
+    vtkImageData *pcProbVol = this->getSubject()->getGrayMat().getProbVol().getVolume().GetPointer();
+    vtkImageData *pcLabelVol = this->getSubject()->getGrayMat().getLabelVol().getUnclippedVolume().GetPointer();
+
+
+
+    QVector3D cCurPos;
+    QColor& rcColor = pcRay->getColor();
+    QColor interColor;
+    double curAlphaGain;
+    double interIntensity;
+
+    while(dTCur > dTEnd && rcColor.alphaF() < (1.0 - EPSILON) )
+    {
+        cCurPos = pcRay->getPoint() + dTCur*pcRay->getDir();
+        interColor = interpolateLabelColor(cCurPos, pcLabelVol); /// TODO change to pcLabelVol
+        interIntensity = interpolateIntensity(cCurPos, pcProbVol);
+        qDebug() << interIntensity;
+        curAlphaGain = (1-rcColor.alphaF())*interColor.alphaF()*interIntensity*300;
+
+        rcColor.setAlphaF(rcColor.alphaF() + curAlphaGain );
+        rcColor.setRedF(rcColor.redF() + curAlphaGain*interColor.redF());
+        rcColor.setGreenF(rcColor.greenF() + curAlphaGain*interColor.greenF());
+        rcColor.setBlueF(rcColor.blueF() + curAlphaGain*interColor.blueF());
+        dTCur -= m_dTStep;
+    }
+
+    curAlphaGain = 1-rcColor.alphaF();
+    rcColor.setAlphaF(1.0);
+    rcColor.setRedF(rcColor.redF() + curAlphaGain*getBGColor().redF());
+    rcColor.setGreenF(rcColor.greenF() + curAlphaGain*getBGColor().greenF());
+    rcColor.setBlueF(rcColor.blueF() + curAlphaGain*getBGColor().blueF());
+
+}
+

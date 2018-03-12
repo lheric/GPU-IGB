@@ -1,0 +1,1 @@
+m_iXMin in raycast(opencl)renderer should be double

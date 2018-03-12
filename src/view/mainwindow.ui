@@ -1,0 +1,487 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1171</width>
+    <height>700</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>BECA</string>
+  </property>
+  <widget class="QWidget" name="centralWidget">
+   <layout class="QHBoxLayout" name="horizontalLayout">
+    <property name="spacing">
+     <number>1</number>
+    </property>
+    <property name="leftMargin">
+     <number>1</number>
+    </property>
+    <property name="topMargin">
+     <number>1</number>
+    </property>
+    <property name="rightMargin">
+     <number>1</number>
+    </property>
+    <property name="bottomMargin">
+     <number>1</number>
+    </property>
+    <item>
+     <widget class="QSplitter" name="centerWidgetSplitter">
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
+      </property>
+      <property name="handleWidth">
+       <number>3</number>
+      </property>
+      <widget class="QVTKCustomWidget" name="qvtkWidget" native="true">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="contextMenuPolicy">
+        <enum>Qt::CustomContextMenu</enum>
+       </property>
+      </widget>
+      <widget class="QVTKCircleGraphView" name="circleGraphView" native="true"/>
+      <widget class="QCustomGraphicsView" name="raycastWin">
+       <property name="verticalScrollBarPolicy">
+        <enum>Qt::ScrollBarAlwaysOff</enum>
+       </property>
+       <property name="horizontalScrollBarPolicy">
+        <enum>Qt::ScrollBarAlwaysOff</enum>
+       </property>
+       <property name="resizeAnchor">
+        <enum>QGraphicsView::AnchorUnderMouse</enum>
+       </property>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QStatusBar" name="statusBar"/>
+  <widget class="QDockWidget" name="ctrlPaneldockWidget">
+   <property name="floating">
+    <bool>false</bool>
+   </property>
+   <property name="features">
+    <set>QDockWidget::DockWidgetFloatable|QDockWidget::DockWidgetMovable</set>
+   </property>
+   <property name="windowTitle">
+    <string>Control Panel</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>2</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents_2">
+    <layout class="QVBoxLayout" name="verticalLayout">
+     <property name="leftMargin">
+      <number>0</number>
+     </property>
+     <property name="topMargin">
+      <number>0</number>
+     </property>
+     <property name="rightMargin">
+      <number>0</number>
+     </property>
+     <property name="bottomMargin">
+      <number>0</number>
+     </property>
+     <item>
+      <widget class="ControlPanel" name="controlPanel" native="true"/>
+     </item>
+     <item>
+      <widget class="InteractorStyleWidget" name="interactionStylePanel" native="true">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_2">
+       <item>
+        <spacer name="horizontalSpacer">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QPushButton" name="screenshotBtn">
+         <property name="text">
+          <string>Screenshot</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QDockWidget" name="msgDockWidget">
+   <property name="features">
+    <set>QDockWidget::AllDockWidgetFeatures</set>
+   </property>
+   <property name="allowedAreas">
+    <set>Qt::AllDockWidgetAreas</set>
+   </property>
+   <property name="windowTitle">
+    <string>Message Window</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>8</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents_3">
+    <layout class="QVBoxLayout" name="verticalLayout_2">
+     <property name="leftMargin">
+      <number>0</number>
+     </property>
+     <property name="topMargin">
+      <number>0</number>
+     </property>
+     <property name="rightMargin">
+      <number>0</number>
+     </property>
+     <property name="bottomMargin">
+      <number>0</number>
+     </property>
+     <item>
+      <widget class="MessageViewer" name="messageViewerPanel" native="true">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Ignored">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>120</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QMenuBar" name="menuBar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>1171</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>FILE</string>
+    </property>
+    <addaction name="actionOpen_trk"/>
+    <addaction name="actionOpen_Fiber_Connection_Info_csv"/>
+    <addaction name="actionOpen_Fiber_ICC_ROI_based_csv"/>
+    <addaction name="actionOpen_Fiber_Variance_ROI_based_csv"/>
+    <addaction name="actionOpen_Fiber_Count_ROI_based_csv"/>
+    <addaction name="separator"/>
+    <addaction name="actionOpen_Gray_Matter_File_NIFTI_nii"/>
+    <addaction name="actionOpen_Gray_Matter_Parcellation_File_nii"/>
+    <addaction name="actionOpen_Time_Serise_Data_csv"/>
+    <addaction name="actionOpen_SC_FC_Connectivity_Matrix_csv"/>
+    <addaction name="actionOpen_Muti_disease_File_csv"/>
+    <addaction name="actionOpen_Multi_disease_Connectivity_csv"/>
+    <addaction name="separator"/>
+    <addaction name="actionSave_As_vtk"/>
+   </widget>
+   <widget class="QMenu" name="menuADVANCE_OPTIONS">
+    <property name="title">
+     <string>RENDERING OPTIONS</string>
+    </property>
+    <addaction name="actionTwo_side_Lighting"/>
+    <addaction name="actionDeep_Peeling"/>
+    <addaction name="actionParallel"/>
+   </widget>
+   <widget class="QMenu" name="menuABOUT">
+    <property name="title">
+     <string>ABOUT</string>
+    </property>
+    <addaction name="actionAbout_BECA"/>
+   </widget>
+   <widget class="QMenu" name="menuView">
+    <property name="title">
+     <string>VIEW</string>
+    </property>
+    <addaction name="actionToggleMsgWin"/>
+   </widget>
+   <addaction name="menuFile"/>
+   <addaction name="menuView"/>
+   <addaction name="menuADVANCE_OPTIONS"/>
+   <addaction name="menuABOUT"/>
+  </widget>
+  <widget class="QDockWidget" name="loadedSubjects">
+   <property name="windowTitle">
+    <string>Loaded Subject(s)</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>1</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents_6">
+    <layout class="QVBoxLayout" name="verticalLayout_3"/>
+   </widget>
+  </widget>
+  <widget class="QDockWidget" name="loadedRenderers">
+   <property name="windowTitle">
+    <string>Loaded Renderers</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>1</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents_7">
+    <layout class="QVBoxLayout" name="verticalLayout_4">
+     <property name="spacing">
+      <number>0</number>
+     </property>
+     <property name="leftMargin">
+      <number>0</number>
+     </property>
+     <property name="topMargin">
+      <number>0</number>
+     </property>
+     <property name="rightMargin">
+      <number>0</number>
+     </property>
+     <property name="bottomMargin">
+      <number>0</number>
+     </property>
+     <item>
+      <widget class="PluginFilterList" name="listWidget"/>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QDockWidget" name="rendererProperty">
+   <property name="windowTitle">
+    <string>Renderer Properties</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>2</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents">
+    <layout class="QVBoxLayout" name="verticalLayout_5">
+     <property name="spacing">
+      <number>0</number>
+     </property>
+     <property name="leftMargin">
+      <number>0</number>
+     </property>
+     <property name="topMargin">
+      <number>0</number>
+     </property>
+     <property name="rightMargin">
+      <number>0</number>
+     </property>
+     <property name="bottomMargin">
+      <number>0</number>
+     </property>
+     <item>
+      <widget class="PluginPropertyTabs" name="rendererPropTabs">
+       <property name="tabPosition">
+        <enum>QTabWidget::West</enum>
+       </property>
+       <property name="tabShape">
+        <enum>QTabWidget::Triangular</enum>
+       </property>
+       <property name="currentIndex">
+        <number>-1</number>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <action name="actionOpen_trk">
+   <property name="text">
+    <string>Open Fiber File [TRACKVIS] (*.trk)</string>
+   </property>
+  </action>
+  <action name="actionOpen_Gray_Matter_File_NIFTI_nii">
+   <property name="text">
+    <string>Open Gray Matter File [NIFTI] (*.nii)</string>
+   </property>
+  </action>
+  <action name="actionTwo_side_Lighting">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Two-side Lighting</string>
+   </property>
+  </action>
+  <action name="actionOpen_Gray_Matter_Parcellation_File_nii">
+   <property name="text">
+    <string>Open Gray Matter Parcellation File(*.nii)</string>
+   </property>
+  </action>
+  <action name="actionDeep_Peeling">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Deep Peeling</string>
+   </property>
+  </action>
+  <action name="actionSave_As_vtk">
+   <property name="text">
+    <string>Save As *.vtk</string>
+   </property>
+  </action>
+  <action name="actionOpen_Time_Serise_Data_csv">
+   <property name="text">
+    <string>Open Time Serise Data (*.csv)</string>
+   </property>
+  </action>
+  <action name="actionOpen_Fiber_Connection_Info_csv">
+   <property name="text">
+    <string>Open Fiber Connection Info. (*.csv)</string>
+   </property>
+  </action>
+  <action name="actionOpen_Fiber_ICC_ROI_based_csv">
+   <property name="text">
+    <string>Open Fiber ICC (ROI based) (*.csv)</string>
+   </property>
+  </action>
+  <action name="actionOpen_Fiber_Variance_ROI_based_csv">
+   <property name="text">
+    <string>Open Fiber Variance (ROI based) (*.csv)</string>
+   </property>
+  </action>
+  <action name="actionOpen_Fiber_Count_ROI_based_csv">
+   <property name="text">
+    <string>Open Fiber Count (ROI based) (*.csv)</string>
+   </property>
+  </action>
+  <action name="actionOpen_SC_FC_Connectivity_Matrix_csv">
+   <property name="text">
+    <string>Open SC/FC Connectivity Matrix (*.csv)</string>
+   </property>
+  </action>
+  <action name="actionOpen_Muti_disease_File_csv">
+   <property name="text">
+    <string>Open Muti-disease File (*.csv)</string>
+   </property>
+  </action>
+  <action name="actionOpen_Multi_disease_Connectivity_csv">
+   <property name="text">
+    <string>Open Multi-disease Connectivity (*.csv)</string>
+   </property>
+  </action>
+  <action name="actionAbout_BECA">
+   <property name="text">
+    <string>About BECA</string>
+   </property>
+  </action>
+  <action name="actionParallel">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Parallel Projection</string>
+   </property>
+  </action>
+  <action name="actionRaycasting_Window">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../assets/assets.qrc">
+     <normaloff>:/icons/raycast_win_btn</normaloff>:/icons/raycast_win_btn</iconset>
+   </property>
+   <property name="text">
+    <string>Raycasting Window</string>
+   </property>
+   <property name="toolTip">
+    <string>Show/Hide Raycasting Window</string>
+   </property>
+  </action>
+  <action name="actionToggleMsgWin">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Message Window</string>
+   </property>
+   <property name="shortcut">
+    <string>`</string>
+   </property>
+  </action>
+ </widget>
+ <layoutdefault spacing="6" margin="11"/>
+ <customwidgets>
+  <customwidget>
+   <class>MessageViewer</class>
+   <extends>QWidget</extends>
+   <header>view/messageviewer.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>ControlPanel</class>
+   <extends>QWidget</extends>
+   <header>view/controlpanel.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>InteractorStyleWidget</class>
+   <extends>QWidget</extends>
+   <header>view/interactorstylewidget.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>QVTKCustomWidget</class>
+   <extends>QWidget</extends>
+   <header>view/qvtkcustomwidget.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>QCustomGraphicsView</class>
+   <extends>QGraphicsView</extends>
+   <header>view/qcustomgraphicsview.h</header>
+  </customwidget>
+  <customwidget>
+   <class>QVTKCircleGraphView</class>
+   <extends>QWidget</extends>
+   <header>view/qvtkcirclegraphview.h</header>
+  </customwidget>
+  <customwidget>
+   <class>PluginFilterList</class>
+   <extends>QListWidget</extends>
+   <header>view/pluginfilterlist.h</header>
+  </customwidget>
+  <customwidget>
+   <class>PluginPropertyTabs</class>
+   <extends>QTabWidget</extends>
+   <header>view/pluginpropertytabs.h</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources>
+  <include location="../assets/assets.qrc"/>
+ </resources>
+ <connections/>
+</ui>

@@ -1,0 +1,6 @@
+[submodule "libgitlmvc"]
+	path = libgitlmvc
+	url = https://github.com/lheric/libgitlmvc.git
+[submodule "libtrkfileio"]
+	path = libtrkfileio
+	url = https://github.com/lheric/libtrkfileio.git

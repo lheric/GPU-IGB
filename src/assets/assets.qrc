@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file alias="raycast_win_btn">icons/raycast_win_btn.png</file>
+    </qresource>
+</RCC>
