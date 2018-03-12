@@ -24,4 +24,17 @@ Dependencies:
 * [Qt 5.7 or later](https://www.qt.io/)
 * [VTK 7.0.0 or later](https://www.vtk.org/)
 * [CUDA 8.0](https://developer.nvidia.com/cuda-toolkit)
+* Windows 7 or later
 
+Client:
+1. Load BECA.pro with Qt Creator
+2. Set `VTK_ROOT` and `VTK_MAIN_VERSION` in file `vtk.pri`
+`VTK_ROOT` is the path where VTK is installed
+`VTK_MAIN_VERSION` is the version number of VTK
+3. Click menu `Build` -> `Build All`
+
+Server:
+1. Load `libplugins\libgenomeexplorer\calculation_backend\BServerExperiments.sln` with Visual Studio 2015 or later
+2. Build 'BServer'
+
+Follow the instruction in [software manual](http://www.iu.edu/~beca/asserts/BECA_Software_Manual_GenomeExplorer.pdf) to run it.
