@@ -38,3 +38,17 @@ Server:
 2. Build 'BServer'
 
 Follow the instruction in [software manual](http://www.iu.edu/~beca/asserts/BECA_Software_Manual_GenomeExplorer.pdf) to run it.
+
+
+Input Data Format
+=================
+
+Input data format
+If you want to use the genome explorer with custom data instead of the example data in the binary zip file, you can prepare your data in the following format.
+
+Genotype data: (example_data/genotype.txt)
+You can load this file with Excel. Each row is a subject, and each column is a SNP
+
+Phenotype data: (example_data/phenotype.bin)
+This file is a N by M matrix in binary format. The first 8 bytes are two 32bit integers indicating the number of subjects (N) and the number of measurements (M) for each subject, which is followed by NxM 32bit float-point numbers. The matrix is written in row major format.
+
